@@ -135,7 +135,7 @@ bool UserData::TryOpenAppendFile(std::wstring const& inPath, std::fstream& outSt
 
 void UserData::Init()
 {
-	std::ifstream stream("settings.ini");
+	std::ifstream stream(FormatPath(L"settings.ini"));
 
 	if (stream.is_open())
 	{
@@ -157,7 +157,8 @@ void UserData::Update()
 	if (s_PendingSavedValueChange)
 	{
 		s_PendingSavedValueChange = false;
-		std::ofstream stream("settings.ini");
+		EnsureParentDirectoriesExist(FormatPath(L"settings.ini"));
+		std::ofstream stream(FormatPath(L"settings.ini"));
 
 		if (stream.is_open())
 		{

@@ -16,14 +16,17 @@
 #include <cstdio>
 #include <cerrno>
 #include <cstdint>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 inline bool IsDebuggerPresent() { return false; }
 inline void OutputDebugStringA(char const*) {}
 
 inline unsigned long GetCurrentThreadId()
 {
-    return static_cast<unsigned long>(reinterpret_cast<uintptr_t>(
-        reinterpret_cast<void*>(pthread_self())));
+    // gettid() gives the small kernel thread id that shows up in ps/gdb,
+    // rather than a truncated pthread_t handle.
+    return static_cast<unsigned long>(::syscall(SYS_gettid));
 }
 
 // MSVC "secure" CRT variants, same argument order and 0-on-success contract.
