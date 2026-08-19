@@ -1,5 +1,6 @@
 # Build output
 build-assistant/
+build-debug/
 dist/
 
 # Vendored mGBA source + build (137MB, fetched by hand - see README)

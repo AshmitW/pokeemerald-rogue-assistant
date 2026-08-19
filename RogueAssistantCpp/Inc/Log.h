@@ -12,12 +12,17 @@
 // Previously LOG_* and ASSERT_* were compiled out entirely for Release, which
 // meant every packet-size and bounds check in the shipping build was a no-op and
 // there was no trail at all. Output goes to stderr, the debugger, and
-// RogueAssistant.log in the working directory.
+// RogueAssistant.log under the per-user data directory.
 void RogueLog_Write(char const* level, char const* format, ...);
 
 #define LOG_INFO(...)  RogueLog_Write("INFO", __VA_ARGS__)
 #define LOG_WARN(...)  RogueLog_Write("WARN", __VA_ARGS__)
 #define LOG_ERROR(...) RogueLog_Write("ERROR", __VA_ARGS__)
+
+#ifndef _MSC_VER
+// MSVC intrinsic used by ASSERT_MSG below.
+#define __debugbreak() __builtin_trap()
+#endif
 
 #ifdef _ASSERTS
 #define ASSERT_MSG(condition, ...) do { if(!(condition)) { LOG_ERROR(__VA_ARGS__); __debugbreak(); } } while(0)
