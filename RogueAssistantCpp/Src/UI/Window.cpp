@@ -1,9 +1,9 @@
-#include "UI\Window.h"
+#include "UI/Window.h"
 #include "Assets.h"
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
-#include <Windows.h>
+#include "WinCompat.h"
 
 #include "Defines.h"
 #include "Log.h"
@@ -74,20 +74,15 @@ void Window::EnterMainLoop(WindowCallback callback, void* userData)
                 {
                     if (sfEvent.text.unicode == 22) // ctrl + v
                     {
-                        if (OpenClipboard(NULL))
-                        {
-                            HANDLE h = GetClipboardData(CF_TEXT);
-                            char* textPtr = (char*)h;
+                        // SFML's clipboard is portable; the Win32 path this
+                        // replaced only handled CF_TEXT anyway.
+                        std::string clipboard = sf::Clipboard::getString().toAnsiString();
 
-                            if (textPtr != nullptr)
-                            {
-                                // Limit to specific character limit just for ease
-                                for (int i = 0; i < 256 && textPtr[i] != 0; ++i)
-                                    m_TextEntered += textPtr[i];
-                            }
+                        // Limit to specific character limit just for ease
+                        if (clipboard.size() > 256)
+                            clipboard.resize(256);
 
-                            CloseClipboard();
-                        }
+                        m_TextEntered += clipboard;
                     }
                     else if (sfEvent.text.unicode == 1) // ctrl + a
                     {

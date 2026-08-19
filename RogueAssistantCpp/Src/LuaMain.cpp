@@ -3,8 +3,7 @@
 #include <vector>
 #include <string>
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include "WinCompat.h"
 
 #include "GameConnectionManager.h"
 
@@ -216,7 +215,7 @@ extern "C"
         return 0;
     }
 
-    __declspec(dllexport) int luaopen_RogueAssistant(lua_State* lua)
+    ROGUE_EXPORT int luaopen_RogueAssistant(lua_State* lua)
     {
 #if _DEBUG
         LOG_INFO("Awaiting debugger attach..");

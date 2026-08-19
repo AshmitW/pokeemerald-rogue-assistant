@@ -4,8 +4,7 @@
 #include <ctime>
 #include <mutex>
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include "WinCompat.h"
 
 static std::mutex s_LogMutex;
 static FILE* s_LogFile = nullptr;

@@ -4,71 +4,81 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <system_error>
 
+#ifdef _MSC_VER
 #pragma warning( push )
 #pragma warning( disable : 4244)
+#endif
 
 namespace fs = std::filesystem;
 
 std::map<std::string, std::string> UserData::s_SavedValues;
 bool UserData::s_PendingSavedValueChange = false;
 
-static std::wstring GetEnvVar(std::wstring const& var, std::wstring const& defaultVal)
+// Windows kept user data under %appdata%/.pokabbie/rogue_assistant.
+// Linux follows the XDG base directory spec instead.
+static fs::path GetUserDataRoot()
 {
-	wchar_t* buf = nullptr;
-	size_t sz = 0;
-	if (_wdupenv_s(&buf, &sz, var.c_str()) == 0 && buf != nullptr)
+#ifdef _WIN32
+	wchar_t* buffer = nullptr;
+	size_t size = 0;
+	if (_wdupenv_s(&buffer, &size, L"appdata") == 0 && buffer != nullptr)
 	{
-		std::wstring output = buf;
-		free(buf);
-		return output;
+		fs::path root = fs::path(buffer) / L".pokabbie" / L"rogue_assistant";
+		free(buffer);
+		return root;
 	}
-	return defaultVal;
+	return fs::path(L"save") / L".pokabbie" / L"rogue_assistant";
+#else
+	char const* xdgDataHome = std::getenv("XDG_DATA_HOME");
+	if (xdgDataHome != nullptr && *xdgDataHome != '\0')
+		return fs::path(xdgDataHome) / "pokabbie" / "rogue_assistant";
+
+	char const* home = std::getenv("HOME");
+	if (home != nullptr && *home != '\0')
+		return fs::path(home) / ".local" / "share" / "pokabbie" / "rogue_assistant";
+
+	return fs::path("save") / "pokabbie" / "rogue_assistant";
+#endif
 }
 
-static std::wstring FormatPath(std::wstring const& path)
+// Callers pass relative paths such as L"2/1234567/boxes.dat"; absolute paths
+// are used as-is. std::filesystem handles separators, so the manual backslash
+// rewriting the Windows version did is no longer needed.
+static fs::path FormatPath(std::wstring const& path)
 {
-	std::wstring output;
+	fs::path input(path);
 
-	if (path.find_first_of(':') == std::wstring::npos)
-	{
-		// Relative path
-		fs::path p = GetEnvVar(L"appdata", L"save") + L"/.pokabbie/rogue_assistant/" + path;
-		p = std::filesystem::absolute(p);
-		output = p;
-	}
-	else
-	{
-		// Already absolute path
-		output = path;
-	}
+	if (input.is_absolute())
+		return input.lexically_normal();
 
-	strutil::replace_all(output, L"/", L"\\");
-	strutil::replace_all(output, L"\\\\", L"\\"); // remove any double slashes
-	return output;
+	return (GetUserDataRoot() / input).lexically_normal();
 }
 
 bool UserData::DoesDirectoryExist(std::wstring const& path)
 {
-	fs::file_status status = fs::status(FormatPath(path));
-	return fs::is_directory(status);
+	std::error_code errorCode;
+	return fs::is_directory(FormatPath(path), errorCode);
 }
 
-bool UserData::DoesFileExist(std::wstring const& path) 
+bool UserData::DoesFileExist(std::wstring const& path)
 {
-	fs::file_status status = fs::status(FormatPath(path));
-	return fs::is_regular_file(status);
+	std::error_code errorCode;
+	return fs::is_regular_file(FormatPath(path), errorCode);
 }
 
-static void EnsureParentDirectoriesExist(std::wstring const& path)
+static void EnsureParentDirectoriesExist(fs::path const& fullPath)
 {
-	std::wstring directoryPath = FormatPath(path);
-	directoryPath = directoryPath.substr(0, directoryPath.find_last_of('\\'));
+	fs::path parent = fullPath.parent_path();
+	if (parent.empty())
+		return;
 
-	if (!UserData::DoesDirectoryExist(directoryPath))
+	std::error_code errorCode;
+	if (!fs::is_directory(parent, errorCode))
 	{
-		LOG_INFO("UserData::CreateDir %s", std::string(directoryPath.begin(), directoryPath.end()).c_str());
-		fs::create_directories(directoryPath);
+		LOG_INFO("UserData::CreateDir %s", parent.string().c_str());
+		fs::create_directories(parent, errorCode);
 	}
 }
 
@@ -76,13 +86,13 @@ bool UserData::TryOpenReadFile(std::wstring const& inPath, std::fstream& outStre
 {
 	if (DoesFileExist(inPath))
 	{
-		std::wstring fullPath = FormatPath(inPath);
+		fs::path fullPath = FormatPath(inPath);
 		EnsureParentDirectoriesExist(fullPath);
 
-		LOG_INFO("UserData::OpenRead %s", std::string(fullPath.begin(), fullPath.end()).c_str());
+		LOG_INFO("UserData::OpenRead %s", fullPath.string().c_str());
 
 		outStream.close();
-		outStream.open(fullPath.c_str(), std::ios::binary | std::ios::in);
+		outStream.open(fullPath, std::ios::binary | std::ios::in);
 		return outStream.is_open();
 	}
 
@@ -93,13 +103,13 @@ bool UserData::TryOpenWriteFile(std::wstring const& inPath, std::fstream& outStr
 {
 	if (createIfMissing || DoesFileExist(inPath))
 	{
-		std::wstring fullPath = FormatPath(inPath);
+		fs::path fullPath = FormatPath(inPath);
 		EnsureParentDirectoriesExist(fullPath);
 
-		LOG_INFO("UserData::OpenWrite %s", std::string(fullPath.begin(), fullPath.end()).c_str());
+		LOG_INFO("UserData::OpenWrite %s", fullPath.string().c_str());
 
 		outStream.close();
-		outStream.open(fullPath.c_str(), std::ios::binary | std::ios::out | std::ios::trunc);
+		outStream.open(fullPath, std::ios::binary | std::ios::out | std::ios::trunc);
 		return outStream.is_open();
 	}
 
@@ -110,13 +120,13 @@ bool UserData::TryOpenAppendFile(std::wstring const& inPath, std::fstream& outSt
 {
 	if (createIfMissing || DoesFileExist(inPath))
 	{
-		std::wstring fullPath = FormatPath(inPath);
+		fs::path fullPath = FormatPath(inPath);
 		EnsureParentDirectoriesExist(fullPath);
 
-		LOG_INFO("UserData::OpenWrite %s", std::string(fullPath.begin(), fullPath.end()).c_str());
+		LOG_INFO("UserData::OpenAppend %s", fullPath.string().c_str());
 
 		outStream.close();
-		outStream.open(fullPath.c_str(), std::ios::out | std::ios::app);
+		outStream.open(fullPath, std::ios::out | std::ios::app);
 		return outStream.is_open();
 	}
 
@@ -199,4 +209,6 @@ void UserData::SetSavedInt(std::string const& key, int value)
 	SetSavedString(key, std::to_string(value));
 }
 
+#ifdef _MSC_VER
 #pragma warning( pop )
+#endif

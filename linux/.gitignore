@@ -1,0 +1,12 @@
+# Build output
+build-assistant/
+dist/
+
+# Vendored mGBA source + build (137MB, fetched by hand - see README)
+mgba-build/
+
+# Local dependency sysroot (extracted RPMs)
+deps/
+
+# Phase 0 spike binaries (throwaway; sources kept as a record of the proof)
+spike/*.so
