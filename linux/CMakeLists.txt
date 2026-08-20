@@ -57,3 +57,26 @@ target_link_libraries(RogueAssistant PRIVATE
 
 # Lua's require() looks for exactly "RogueAssistant.so", no "lib" prefix.
 set_target_properties(RogueAssistant PROPERTIES PREFIX "" OUTPUT_NAME "RogueAssistant")
+
+# Launcher: the Linux counterpart to RogueAssistant.exe. Extracts the embedded
+# RogueAssistant_mGBA.lua next to the library and shows the connect instructions.
+# Named "RogueAssistant" like the .so - on Linux the filenames don't collide.
+add_executable(RogueAssistantLauncher
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RogueAssistantStub/RogueAssistantStub.cpp)
+
+target_link_libraries(RogueAssistantLauncher PRIVATE RogueAssistant)
+
+# RogueAssistant.so deliberately leaves lua_* undefined - mGBA supplies them when
+# it dlopens the library. The launcher never reaches any Lua code path, so allow
+# the unresolved symbols and force lazy binding, which means they are only ever
+# resolved if actually called. (All of them are functions, so lazy binding applies;
+# an undefined *data* symbol would still bind eagerly and fail.)
+target_link_options(RogueAssistantLauncher PRIVATE
+    -Wl,--allow-shlib-undefined
+    -Wl,-z,lazy)
+
+set_target_properties(RogueAssistantLauncher PROPERTIES
+    OUTPUT_NAME "RogueAssistant"
+    # Find RogueAssistant.so beside the executable rather than needing LD_LIBRARY_PATH
+    BUILD_RPATH "$ORIGIN"
+    INSTALL_RPATH "$ORIGIN")

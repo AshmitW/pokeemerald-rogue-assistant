@@ -9,5 +9,3 @@ mgba-build/
 # Local dependency sysroot (extracted RPMs)
 deps/
 
-# Phase 0 spike binaries (throwaway; sources kept as a record of the proof)
-spike/*.so

@@ -5,6 +5,7 @@
 #include "Log.h"
 #include "UserData.h"
 
+#include <filesystem>
 #include <fstream>
 #include <stdlib.h>
 #include <string>
@@ -39,13 +40,36 @@ bool RogueAssistant_MainLoop(Window* window, void* userData);
 void RogueAssistant_StubFunc();
 void RogueAssistant_ThreadFunc();
 
+// The script must land beside the library, because that is where Lua's
+// package.cpath looks for it. This previously used the working directory, which
+// on Windows usually coincided but on Linux does not.
+static std::filesystem::path GetExecutableDirectory()
+{
+#ifdef _WIN32
+    wchar_t buffer[MAX_PATH];
+    DWORD length = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    if (length > 0 && length < MAX_PATH)
+        return std::filesystem::path(buffer).parent_path();
+#else
+    std::error_code errorCode;
+    std::filesystem::path exePath = std::filesystem::read_symlink("/proc/self/exe", errorCode);
+    if (!errorCode)
+        return exePath.parent_path();
+#endif
+
+    std::error_code fallbackError;
+    return std::filesystem::current_path(fallbackError);
+}
+
 static void DumpScriptsNextToExe()
 {
     {
-        std::ofstream fileStream;
-        fileStream.open("RogueAssistant_mGBA.lua", std::ios::out);
+        std::filesystem::path scriptPath = GetExecutableDirectory() / "RogueAssistant_mGBA.lua";
 
-        LOG_INFO("Dumping RogueAssistant_mGBA.lua next to exe");
+        std::ofstream fileStream;
+        fileStream.open(scriptPath, std::ios::out);
+
+        LOG_INFO("Dumping %s", scriptPath.string().c_str());
 
         auto const& data = bin2cpp::getRogueAssistant_mGBALuaFile();
         char const* ptr = data.getBuffer();

@@ -19,9 +19,14 @@ fi
 
 mkdir -p "$DIST"
 cp -f "$BUILD/RogueAssistant.so" "$DIST/"
+cp -f "$BUILD/RogueAssistant" "$DIST/" 2>/dev/null || true
+chmod +x "$DIST/RogueAssistant" 2>/dev/null || true
+# Dev shortcut: copy the script directly rather than running the launcher, which
+# would block on its instruction window. End users run ./RogueAssistant instead.
 cp -f "$HERE/../RogueAssistantCpp/Assets/RogueAssistant_mGBA.lua" "$DIST/"
 
 echo "Staged:"
+echo "  $DIST/RogueAssistant       (launcher)"
 echo "  $DIST/RogueAssistant.so"
 echo "  $DIST/RogueAssistant_mGBA.lua"
 echo
