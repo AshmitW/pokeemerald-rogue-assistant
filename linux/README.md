@@ -58,14 +58,20 @@ The build needs these packages:
 | SFML 2.6 development files | The user interface |
 | ENet development files | The multiplayer network |
 
+The build needs SFML 2.6. Some distributions supply a different version:
+
+- Debian 12 and Ubuntu 22.04 supply SFML 2.5. This version is too old.
+- Arch supplies SFML 3. SFML 3 is not compatible with SFML 2. Install SFML 2
+  from the AUR instead.
+
 Install the packages that you do not have already:
 
 ```bash
-# Debian or Ubuntu
+# Debian 13 or Ubuntu 24.04 and later
 sudo apt install cmake g++ python3 pkg-config libsfml-dev libenet-dev
 
-# Arch
-sudo pacman -S cmake gcc python pkgconf sfml enet
+# Arch (get SFML 2 from the AUR; the repository package is SFML 3)
+sudo pacman -S cmake gcc python pkgconf enet
 ```
 
 Then build:
