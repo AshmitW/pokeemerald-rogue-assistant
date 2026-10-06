@@ -5,6 +5,8 @@
 Rogue Assistant is a companion program for the game. The game uses it for
 multiplayer sessions and for additional Pokemon storage.
 
+This version supports game version 2.2.0.
+
 This project makes two files for Linux:
 
 - `RogueAssistant.so` is the library. The mGBA emulator loads this library.
@@ -77,7 +79,7 @@ sudo pacman -S cmake gcc python pkgconf enet
 Then build:
 
 ```bash
-git clone <this repository>
+git clone https://github.com/AshmitW/pokeemerald-rogue-assistant.git
 cd pokeemerald-rogue-assistant/linux
 bash build.sh
 ```
