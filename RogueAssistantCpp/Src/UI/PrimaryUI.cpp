@@ -19,6 +19,15 @@ static double const c_ViewAspectH = 3;
 
 static sf::Vector2f const c_CentreOffset(-16, 0);
 
+// SFML converts std::string -> sf::String through the C locale, which maps any
+// byte >= 0x80 to WEOF - so a Latin-1 'e-acute' arrived as U+FFFFFFFF and drew as
+// tofu. Source is UTF-8 now, so decode it as such.
+static inline sf::String Utf8(char const* text)
+{
+	std::string bytes(text);
+	return sf::String::fromUtf8(bytes.begin(), bytes.end());
+}
+
 template <typename T>
 static inline void LoadBin2CppAsset(T& output, bin2cpp::File const& file)
 {
@@ -54,7 +63,7 @@ struct AssetCollection
 		m_PoketchOverlay.setSmooth(false);
 	}
 
-	void DrawCenteredText(sf::RenderWindow& gfx, std::string const& msg, sf::Vector2f pos, int fontSize, sf::Color const& colour)
+	void DrawCenteredText(sf::RenderWindow& gfx, sf::String const& msg, sf::Vector2f pos, int fontSize, sf::Color const& colour)
 	{
 		sf::Text text;
 		text.setFont(m_Font);
@@ -67,7 +76,7 @@ struct AssetCollection
 		gfx.draw(text);
 	}
 
-	void DrawLeftAlignedText(sf::RenderWindow& gfx, std::string const& msg, sf::Vector2f pos, int fontSize, sf::Color const& colour)
+	void DrawLeftAlignedText(sf::RenderWindow& gfx, sf::String const& msg, sf::Vector2f pos, int fontSize, sf::Color const& colour)
 	{
 		sf::Text text;
 		text.setFont(m_Font);
@@ -80,7 +89,7 @@ struct AssetCollection
 		gfx.draw(text);
 	}
 
-	void DrawRightAlignedText(sf::RenderWindow& gfx, std::string const& msg, sf::Vector2f pos, int fontSize, sf::Color const& colour)
+	void DrawRightAlignedText(sf::RenderWindow& gfx, sf::String const& msg, sf::Vector2f pos, int fontSize, sf::Color const& colour)
 	{
 		sf::Text text;
 		text.setFont(m_Font);
@@ -260,8 +269,10 @@ void PrimaryUI::Render(Window& window)
 		PageUI newPage = PageUI::Awaiting;
 		bool initialLoad = false;
 
-		MultiplayerBehaviour* multiplayer = game.m_Game->FindBehaviour<MultiplayerBehaviour>();
-		HomeBoxBehaviour* homebox = game.m_Game->FindBehaviour<HomeBoxBehaviour>();
+		// Strong refs: the connection thread may remove either behaviour while
+		// we're still drawing with it.
+		std::shared_ptr<MultiplayerBehaviour> multiplayer = game.m_Game->FindBehaviour<MultiplayerBehaviour>();
+		std::shared_ptr<HomeBoxBehaviour> homebox = game.m_Game->FindBehaviour<HomeBoxBehaviour>();
 
 		if (homebox != nullptr)
 		{
@@ -284,11 +295,11 @@ void PrimaryUI::Render(Window& window)
 		switch (m_CurrentPage)
 		{
 		case PrimaryUI::PageUI::Multiplayer:
-			RenderMultiplayerPage(window, multiplayer, initialLoad);
+			RenderMultiplayerPage(window, multiplayer.get(), initialLoad);
 			break;
 
 		case PrimaryUI::PageUI::HomeBox:
-			RenderHomeBoxPage(window, homebox, initialLoad);
+			RenderHomeBoxPage(window, homebox.get(), initialLoad);
 			break;
 
 		default:
@@ -441,7 +452,7 @@ void PrimaryUI::RenderHomeBoxPage(Window& window, HomeBoxBehaviour* homebox, boo
 	// Print state
 	m_Assets->DrawCenteredText(
 		gfx,
-		"Transferring Pokémon Boxes",
+		Utf8("Transferring PokÃ©mon Boxes"),
 		c_CentreOffset + sf::Vector2f(0, -55),
 		16,
 		m_Assets->m_LightFontColour
